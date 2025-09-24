@@ -66,4 +66,8 @@ public class Transaction {
 
     public String getPaymentStatus() { return paymentStatus; }
     public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
+    public UUID getCardId() {
+        return card != null ? card.getId() : null;
+    }
+
 }

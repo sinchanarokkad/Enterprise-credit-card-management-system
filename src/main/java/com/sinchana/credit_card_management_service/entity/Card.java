@@ -16,10 +16,10 @@ public class Card {
     private String cardNumber;
 
     @Column(nullable = false)
-    private String cardType; // "VISA", "MASTERCARD", "AMEX", "RUPAY"
+    private String cardType;
 
     @Column(nullable = false)
-    private String status; // "ACTIVE", "BLOCKED", "INACTIVE", "EXPIRED"
+    private String status;
 
     private double creditLimit;
     private double availableLimit;
@@ -30,7 +30,6 @@ public class Card {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    // Constructors
     public Card() {}
 
     public Card(String cardNumber, String cardType, String status, double creditLimit, double availableLimit, LocalDate expiryDate, User user) {
@@ -43,7 +42,8 @@ public class Card {
         this.user = user;
     }
 
-    // Getters and Setters
+    // Existing getters and setters...
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 
@@ -67,4 +67,9 @@ public class Card {
 
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }
+
+
+    public UUID getUserId() {
+        return user != null ? user.getId() : null;
+    }
 }
