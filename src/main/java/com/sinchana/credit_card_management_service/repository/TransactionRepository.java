@@ -6,5 +6,5 @@ import java.util.List;
 import java.util.UUID;
 
 public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
-    List<Transaction> findByCardId(UUID cardId);
+    List<Transaction> findByCard_Id(UUID cardId);
 }
