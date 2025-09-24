@@ -68,7 +68,6 @@
             <version>${mapstruct.version}</version>
             <scope>provided</scope>
         </dependency>
-
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
