@@ -1,0 +1,114 @@
+package com.sinchana.credit_card_management_service.service;
+
+import com.sinchana.credit_card_management_service.entity.Card;
+import com.sinchana.credit_card_management_service.entity.Transaction;
+import com.sinchana.credit_card_management_service.repository.TransactionRepository;
+import com.sinchana.credit_card_management_service.service.impl.TransactionServiceImpl;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class TransactionServiceTest {
+
+    @Mock
+    private TransactionRepository transactionRepository;
+
+    @Mock
+    private RedisService redisService;
+
+    @Mock
+    private KafkaEventPublisher kafkaEventPublisher;
+
+    @InjectMocks
+    private TransactionServiceImpl transactionService;
+
+    private Transaction testTransaction;
+    private Card testCard;
+
+    @BeforeEach
+    void setUp() {
+        testCard = new Card();
+        testCard.setId(UUID.randomUUID());
+        testCard.setCardNumber("1234567890123456");
+        testCard.setStatus("ACTIVE");
+        testCard.setCreditLimit(new BigDecimal("5000.00"));
+
+        testTransaction = new Transaction();
+        testTransaction.setId(UUID.randomUUID());
+        testTransaction.setCard(testCard);
+        testTransaction.setAmount(new BigDecimal("100.00"));
+        testTransaction.setDescription("Test transaction");
+        testTransaction.setTransactionDate(LocalDateTime.now());
+        testTransaction.setStatus("COMPLETED");
+    }
+
+    @Test
+    void simulateTransaction_ShouldReturnTransaction_WhenValidTransaction() {
+        // Given
+        when(transactionRepository.save(any(Transaction.class))).thenReturn(testTransaction);
+
+        // When
+        Transaction result = transactionService.simulateTransaction(testTransaction);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(testTransaction.getId(), result.getId());
+        assertEquals(testTransaction.getAmount(), result.getAmount());
+        assertEquals(testTransaction.getDescription(), result.getDescription());
+
+        verify(transactionRepository).save(testTransaction);
+        verify(kafkaEventPublisher).publishTransactionEvent(
+            eq(testCard.getId().toString()), 
+            eq(testCard.getId().toString()), 
+            any()
+        );
+    }
+
+    @Test
+    void getTransactionsByCardId_ShouldReturnTransactionList_WhenCardExists() {
+        // Given
+        UUID cardId = testCard.getId();
+        List<Transaction> expectedTransactions = Arrays.asList(testTransaction);
+        when(transactionRepository.findByCardId(cardId)).thenReturn(expectedTransactions);
+
+        // When
+        List<Transaction> result = transactionService.getTransactionsByCardId(cardId);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals(testTransaction.getId(), result.get(0).getId());
+
+        verify(transactionRepository).findByCardId(cardId);
+    }
+
+    @Test
+    void getTransactionsByCardId_ShouldReturnEmptyList_WhenNoTransactions() {
+        // Given
+        UUID cardId = UUID.randomUUID();
+        when(transactionRepository.findByCardId(cardId)).thenReturn(Arrays.asList());
+
+        // When
+        List<Transaction> result = transactionService.getTransactionsByCardId(cardId);
+
+        // Then
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+
+        verify(transactionRepository).findByCardId(cardId);
+    }
+}
