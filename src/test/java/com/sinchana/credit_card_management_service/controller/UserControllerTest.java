@@ -8,6 +8,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -19,7 +21,25 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(UserController.class)
+@WebMvcTest(
+        controllers = UserController.class,
+        excludeAutoConfiguration = {
+                org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration.class,
+                org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration.class,
+                org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration.class,
+                org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration.class,
+                org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration.class,
+                org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration.class
+        },
+        excludeFilters = {
+                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = {
+                        com.sinchana.credit_card_management_service.config.KafkaConfig.class,
+                        com.sinchana.credit_card_management_service.config.RedisConfig.class,
+                        com.sinchana.credit_card_management_service.config.MetricsConfig.class
+                })
+        }
+)
+@org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc(addFilters = false)
 class UserControllerTest {
 
     @Autowired
@@ -27,6 +47,12 @@ class UserControllerTest {
 
     @MockBean
     private UserService userService;
+
+    @MockBean
+    private com.sinchana.credit_card_management_service.security.JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @MockBean
+    private com.sinchana.credit_card_management_service.security.JwtUtil jwtUtil;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -38,18 +64,16 @@ class UserControllerTest {
     @BeforeEach
     void setUp() {
         testUserId = UUID.randomUUID();
-        
+
         testUserRequest = new UserRequestDTO();
         testUserRequest.setEmail("test@example.com");
         testUserRequest.setPassword("password123");
-        testUserRequest.setFirstName("John");
-        testUserRequest.setLastName("Doe");
+        testUserRequest.setUserType("CUSTOMER");
 
         testUserResponse = new UserResponseDTO();
         testUserResponse.setId(testUserId);
         testUserResponse.setEmail("test@example.com");
-        testUserResponse.setFirstName("John");
-        testUserResponse.setLastName("Doe");
+        testUserResponse.setUserType("CUSTOMER");
     }
 
     @Test
@@ -59,13 +83,12 @@ class UserControllerTest {
 
         // When & Then
         mockMvc.perform(post("/api/users")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(testUserRequest)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(testUserRequest)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(testUserId.toString()))
                 .andExpect(jsonPath("$.email").value("test@example.com"))
-                .andExpect(jsonPath("$.firstName").value("John"))
-                .andExpect(jsonPath("$.lastName").value("Doe"));
+                .andExpect(jsonPath("$.userType").value("CUSTOMER"));
     }
 
     @Test
@@ -78,8 +101,7 @@ class UserControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(testUserId.toString()))
                 .andExpect(jsonPath("$.email").value("test@example.com"))
-                .andExpect(jsonPath("$.firstName").value("John"))
-                .andExpect(jsonPath("$.lastName").value("Doe"));
+                .andExpect(jsonPath("$.userType").value("CUSTOMER"));
     }
 
     @Test
@@ -100,8 +122,10 @@ class UserControllerTest {
 
         // When & Then
         mockMvc.perform(post("/api/users")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(invalidRequest)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
                 .andExpect(status().isBadRequest());
     }
 }
+
+
