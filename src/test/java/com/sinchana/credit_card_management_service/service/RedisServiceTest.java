@@ -30,7 +30,7 @@ class RedisServiceTest {
 
     @BeforeEach
     void setUp() {
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
     }
 
     @Test
@@ -216,3 +216,4 @@ class RedisServiceTest {
         verify(valueOperations).increment(key, delta);
     }
 }
+

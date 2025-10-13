@@ -45,22 +45,15 @@ class TransactionServiceTest {
         testCard.setId(UUID.randomUUID());
         testCard.setCardNumber("1234567890123456");
         testCard.setStatus("ACTIVE");
-        testCard.setCreditLimit(5000.00);
-        com.sinchana.credit_card_management_service.entity.User user = new com.sinchana.credit_card_management_service.entity.User();
-        user.setId(UUID.randomUUID());
-        user.setEmail("u@example.com");
-        user.setPassword("x");
-        user.setUserType("CUSTOMER");
-        user.setRole("USER");
-        testCard.setUser(user);
+        testCard.setCreditLimit(new BigDecimal("5000.00"));
 
         testTransaction = new Transaction();
         testTransaction.setId(UUID.randomUUID());
         testTransaction.setCard(testCard);
-        testTransaction.setAmount(100.00);
-        testTransaction.setMerchantName("Test Merchant");
+        testTransaction.setAmount(new BigDecimal("100.00"));
+        testTransaction.setDescription("Test transaction");
         testTransaction.setTransactionDate(LocalDateTime.now());
-        testTransaction.setPaymentStatus("SUCCESS");
+        testTransaction.setStatus("COMPLETED");
     }
 
     @Test
@@ -75,12 +68,12 @@ class TransactionServiceTest {
         assertNotNull(result);
         assertEquals(testTransaction.getId(), result.getId());
         assertEquals(testTransaction.getAmount(), result.getAmount());
-        assertEquals(testTransaction.getMerchantName(), result.getMerchantName());
+        assertEquals(testTransaction.getDescription(), result.getDescription());
 
         verify(transactionRepository).save(testTransaction);
         verify(kafkaEventPublisher).publishTransactionEvent(
-            anyString(),
-            eq(testCard.getId().toString()),
+            eq(testCard.getId().toString()), 
+            eq(testCard.getId().toString()), 
             any()
         );
     }
@@ -90,7 +83,7 @@ class TransactionServiceTest {
         // Given
         UUID cardId = testCard.getId();
         List<Transaction> expectedTransactions = Arrays.asList(testTransaction);
-        when(transactionRepository.findByCard_Id(cardId)).thenReturn(expectedTransactions);
+        when(transactionRepository.findByCardId(cardId)).thenReturn(expectedTransactions);
 
         // When
         List<Transaction> result = transactionService.getTransactionsByCardId(cardId);
@@ -100,14 +93,14 @@ class TransactionServiceTest {
         assertEquals(1, result.size());
         assertEquals(testTransaction.getId(), result.get(0).getId());
 
-        verify(transactionRepository).findByCard_Id(cardId);
+        verify(transactionRepository).findByCardId(cardId);
     }
 
     @Test
     void getTransactionsByCardId_ShouldReturnEmptyList_WhenNoTransactions() {
         // Given
         UUID cardId = UUID.randomUUID();
-        when(transactionRepository.findByCard_Id(cardId)).thenReturn(Arrays.asList());
+        when(transactionRepository.findByCardId(cardId)).thenReturn(Arrays.asList());
 
         // When
         List<Transaction> result = transactionService.getTransactionsByCardId(cardId);
@@ -116,8 +109,7 @@ class TransactionServiceTest {
         assertNotNull(result);
         assertTrue(result.isEmpty());
 
-        verify(transactionRepository).findByCard_Id(cardId);
+        verify(transactionRepository).findByCardId(cardId);
     }
 }
-
 

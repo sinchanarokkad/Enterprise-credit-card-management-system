@@ -36,9 +36,6 @@ class UserServiceTest {
     @Mock
     private KafkaEventPublisher kafkaEventPublisher;
 
-    @Mock
-    private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
-
     @InjectMocks
     private UserServiceImpl userService;
 
@@ -52,41 +49,43 @@ class UserServiceTest {
         testUser.setId(UUID.randomUUID());
         testUser.setEmail("test@example.com");
         testUser.setPassword("password123");
-        testUser.setUserType("CUSTOMER");
+        testUser.setFirstName("John");
+        testUser.setLastName("Doe");
 
         testUserRequest = new UserRequestDTO();
         testUserRequest.setEmail("test@example.com");
         testUserRequest.setPassword("password123");
-        testUserRequest.setUserType("CUSTOMER");
+        testUserRequest.setFirstName("John");
+        testUserRequest.setLastName("Doe");
 
         testUserResponse = new UserResponseDTO();
         testUserResponse.setId(testUser.getId());
         testUserResponse.setEmail("test@example.com");
-        testUserResponse.setUserType("CUSTOMER");
+        testUserResponse.setFirstName("John");
+        testUserResponse.setLastName("Doe");
     }
 
     @Test
     void createUser_ShouldReturnUserResponseDTO_WhenValidRequest() {
         // Given
-        when(passwordEncoder.encode(any())).thenReturn("ENCODED");
-        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
-            User u = invocation.getArgument(0);
-            if (u.getId() == null) u.setId(UUID.randomUUID());
-            return u;
-        });
+        when(userMapper.toEntity(testUserRequest)).thenReturn(testUser);
+        when(userRepository.save(any(User.class))).thenReturn(testUser);
+        when(userMapper.toResponseDTO(testUser)).thenReturn(testUserResponse);
 
         // When
         UserResponseDTO result = userService.createUser(testUserRequest);
 
         // Then
         assertNotNull(result);
-        assertNotNull(result.getId());
+        assertEquals(testUserResponse.getId(), result.getId());
         assertEquals(testUserResponse.getEmail(), result.getEmail());
-        assertEquals(testUserResponse.getUserType(), result.getUserType());
+        assertEquals(testUserResponse.getFirstName(), result.getFirstName());
+        assertEquals(testUserResponse.getLastName(), result.getLastName());
 
-        verify(userRepository).save(any(User.class));
-        verify(kafkaEventPublisher).publishUserProfileEvent(eq(result.getId().toString()), any());
-        verifyNoMoreInteractions(userMapper);
+        verify(userRepository).save(testUser);
+        verify(userMapper).toEntity(testUserRequest);
+        verify(userMapper).toResponseDTO(testUser);
+        verify(kafkaEventPublisher).publishUserProfileEvent(eq(testUser.getId().toString()), any());
     }
 
     @Test
@@ -94,6 +93,7 @@ class UserServiceTest {
         // Given
         UUID userId = testUser.getId();
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+        when(userMapper.toResponseDTO(testUser)).thenReturn(testUserResponse);
 
         // When
         UserResponseDTO result = userService.getUserById(userId);
@@ -104,7 +104,7 @@ class UserServiceTest {
         assertEquals(testUserResponse.getEmail(), result.getEmail());
 
         verify(userRepository).findById(userId);
-        verifyNoInteractions(userMapper);
+        verify(userMapper).toResponseDTO(testUser);
     }
 
     @Test
@@ -114,7 +114,7 @@ class UserServiceTest {
         when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
         // When & Then
-        assertThrows(RuntimeException.class, () -> userService.getUserById(userId));
+        assertThrows(ResourceNotFoundException.class, () -> userService.getUserById(userId));
         verify(userRepository).findById(userId);
     }
 
@@ -122,23 +122,26 @@ class UserServiceTest {
     void deleteUser_ShouldDeleteUser_WhenUserExists() {
         // Given
         UUID userId = testUser.getId();
+        when(userRepository.existsById(userId)).thenReturn(true);
 
         // When
         userService.deleteUser(userId);
 
         // Then
+        verify(userRepository).existsById(userId);
         verify(userRepository).deleteById(userId);
     }
 
     @Test
-    void deleteUser_ShouldNotThrow_WhenUserNotFound() {
+    void deleteUser_ShouldThrowResourceNotFoundException_WhenUserNotFound() {
         // Given
         UUID userId = UUID.randomUUID();
+        when(userRepository.existsById(userId)).thenReturn(false);
 
-        // When & Then: current implementation always deletes
-        assertDoesNotThrow(() -> userService.deleteUser(userId));
-        verify(userRepository).deleteById(userId);
+        // When & Then
+        assertThrows(ResourceNotFoundException.class, () -> userService.deleteUser(userId));
+        verify(userRepository).existsById(userId);
+        verify(userRepository, never()).deleteById(userId);
     }
 }
-
 

@@ -140,3 +140,4 @@ class KafkaEventPublisherTest {
         verify(kafkaTemplate).send(eq("user-profiles"), eq(userId), anyString());
     }
 }
+
